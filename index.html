@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Ponto com Localização</title>
+    <link rel="stylesheet" href="style.css">
+    <script>
+        // Substitua pela sua chave de API do Google Maps
+        const apiKey = 'AIzaSyD6R0avQVZusX7zWEYrudp97bKu3PqbRmQ';
+
+        function submitForm() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(getLocationDetails, showError);
+            } else {
+                document.getElementById('message').innerText = "Geolocalização não é suportada pelo seu navegador.";
+            }
+        }
+
+        function getLocationDetails(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`;
+
+            fetch(geocodeUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "OK") {
+                        const address = data.results[0].formatted_address;
+                        sendData(address);
+                    } else {
+                        document.getElementById('message').innerText = "Não foi possível obter o endereço.";
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao chamar a API de Geocoding:', error);
+                    document.getElementById('message').innerText = "Erro ao obter o endereço.";
+                });
+        }
+
+        function sendData(address) {
+            const name = document.getElementById('name').value;
+            const status = document.getElementById('status').value;
+            const timestamp = new Date().toISOString();
+
+            const data = {
+                name: name,
+                status: status,
+                address: address,
+                timestamp: timestamp
+            };
+
+            fetch('http://localhost:3000/api/save', {  // URL do endpoint do backend
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                console.log(result);
+                document.getElementById('message').innerText = "Registro salvo com sucesso!";
+            })
+            .catch(error => {
+                console.error('Erro ao enviar os dados:', error);
+                document.getElementById('message').innerText = "Erro ao salvar o registro.";
+            });
+        }
+
+        function showError(error) {
+            let message = "";
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    message = "Permissão para obter localização negada.";
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    message = "Informação de localização não disponível.";
+                    break;
+                case error.TIMEOUT:
+                    message = "A solicitação de localização expirou.";
+                    break;
+                case error.UNKNOWN_ERROR:
+                    message = "Um erro desconhecido ocorreu.";
+                    break;
+            }
+            document.getElementById('message').innerText = message;
+        }
+    </script>
+</head>
+<body>
+    <h1>Registro de Ponto</h1>
+    <form id="attendanceForm">
+        <label for="name">Nome:</label>
+        <input type="text" id="name" name="name" required>
+        <br><br>
+        <label for="status">Status:</label>
+        <select id="status" name="status" required>
+            <option value="Entrando">Entrando</option>
+            <option value="Saindo">Saindo</option>
+        </select>
+        <br><br>
+        <button type="button" onclick="submitForm()">Registrar</button>
+    </form>
+
+    <p id="message"></p>
+</body>
+</html>
